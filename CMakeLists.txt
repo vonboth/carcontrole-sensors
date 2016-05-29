@@ -4,4 +4,6 @@ set(PROJECT_NAME Sensors)
 project(${PROJECT_NAME})
 
 set(${CMAKE_PROJECT_NAME}_SKETCH Sensors.ino)
+set(${CMAKE_PROJECT_NAME}_BOARD uno)
+set(${CMAKE_PROJECT_NAME}_PORT /dev/ttyACM0)
 generate_arduino_firmware(${CMAKE_PROJECT_NAME})

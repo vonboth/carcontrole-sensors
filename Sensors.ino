@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <LiquidCrystal/src/LiquidCrystal.h>
+#include <LiquidCrystal.h>
 #include "avr/sleep.h"
 
 /**
@@ -24,6 +24,7 @@
 #define TEMPSENSOR A1              //temperatur sensor
 #define FUELSENSOR A2              //fuel sender / sensor
 #define BREAKFLUID_WARNLIGHT A3    //break fluid warning light (used as digital output)
+#define DISPLAY_LED_POWER A5       //display led power
 #define BTN_FAN 2                  //fan enable button
 #define ENGINE_ON 3                //power on key switched
 #define FAN 4                      //fan on/off control
@@ -31,28 +32,43 @@
 #define BTN_HORN 6                 //button to enable horn
 #define FUEL_WARN_LAMP 7           //fuel warn lamp
 #define FUEL_WARN_THRESHOLD 5      //number of display digits before warning lamp is turned on
+#define FAN_ON_TEMP 95             //temperatur to turn on fan [°C]
+#define FAN_OFF_TEMP 90            //temperatur to turn off fan [°C]
 
+#define ABSZERO 273.15
 #define MODULO 5
-#define SLEEP_TIME 10              //delay before Atmega goes to sleep in minutes
+#define SLEEP_TIME 60000           //delay before Atmega goes to sleep 1 minute
 #define DELAY 100
 
 LiquidCrystal lcd(13, 12, 11, 10, 9, 8); //define the LCD Pins
+const int numReadings = 5;
+
+float temperaturSensorValue=0.0;
+int fuelSensorValue = 0;
+int readBtnFan = 0;
+int readBtnHorn = 0;
+int readBtnBreak = 0;
+
+int temperatur = 0;
+int prevTemperatur = 0;
 long fuelLevel = 0;
+long prevFuelLevel = 0;
 long time = 0;
 long powerOffTime = 0;
 int enableSleep = 0;
+int fanOn = 0;
 int count = 0;
 
 //fuel symbol
 byte fuelSymbol[8] = {
-	0b11100,
-	0b10110,
-	0b10111,
-	0b10101,
-	0b11101,
-	0b11101,
-	0b11111,
-	0b11100
+        0b11100,
+        0b10110,
+        0b10111,
+        0b10101,
+        0b11101,
+        0b11101,
+        0b11111,
+        0b11100
 };
 
 byte mediumChar[8] = {
@@ -77,6 +93,10 @@ void wakeUp() {
  * send atmega to power off mode
  */
 void gotoSleep() {
+    //turn stuff off
+    digitalWrite(HORN, LOW);
+    digitalWrite(BREAKFLUID_WARNLIGHT, LOW);
+    digitalWrite(FAN, LOW);
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     attachInterrupt(0, wakeUp, LOW); //wakeup on button fan turned on
@@ -89,11 +109,72 @@ void gotoSleep() {
 }
 
 /**
+ * calculate temperature
+ *
+ * @return int Temperatur °C
+ */
+int calculateTemperature(float sensorValue) {
+    float T0 = 30.0 + ABSZERO;          // T0 nominal Temp. of NTC = 25°C
+    float R0 = 10000.0;                 // R0 nominal resistance at T0;
+    float B = 3435;                     // beta value (material constant) from data sheet
+    float RV = 2200.0;                  // value series resistor (Vorwiderstandswert)
+    float VA_VB = sensorValue / 1023.0; // current sensor value proportion
+    float RN = RV * VA_VB / (1 - VA_VB);  // current resistance of NTC sensor
+
+    float t =  T0 * B / (B + T0 * log(RN / R0)) - ABSZERO;
+    return int(t);
+}
+
+
+/**
  * write the temp bargraph
  */
-void handleTempReading(int sensorValue) {
-    lcd.setCursor(0, 1); //second row
-    lcd.print("C:");
+void handleTempReading(float sensorValue) {
+
+    String text = "";
+    temperatur = calculateTemperature(sensorValue);
+
+    //turn fan on
+    if (temperatur >= FAN_ON_TEMP && fanOn == 0) {
+        fanOn = 1;
+        digitalWrite(FAN, HIGH);
+    } else if (temperatur < FAN_OFF_TEMP && readBtnFan == HIGH) {
+        fanOn = 0;
+        digitalWrite(FAN, LOW);
+    }
+
+    if (temperatur != prevTemperatur) {
+        prevTemperatur = temperatur;
+        lcd.setCursor(0, 1); //second row
+        lcd.print("                ");
+        lcd.setCursor(0, 1);
+
+        if (temperatur >= 100) {
+            text = "T" + String(temperatur);
+        } else if (temperatur <= 9) {
+            text = "T00" + String(temperatur);
+        } else {
+            text = "T0" + String(temperatur);
+        }
+        lcd.print(text);
+
+        if (temperatur >= 90) {
+            for (unsigned int i = 0; i <= temperatur - 90; i++) {
+                if (i >= 6)
+                    break;
+                lcd.setCursor(i + 4, 1);
+                lcd.print('\377');
+            }
+        }
+        if (temperatur >= 96) {
+            for (unsigned int i = 0; i <= temperatur - 96; i++) {
+                if (i >= 6)
+                    break;
+                lcd.setCursor(i + 10, 1);
+                lcd.write(byte(1));
+            }
+        }
+    }
 }
 
 /**
@@ -104,28 +185,31 @@ void handleFuelReading(int sensorValue) {
     //map the value to the lcd fields
     fuelLevel = map(sensorValue, 130, 650, 15, 0);
 
-    //reset lcd row
-    lcd.setCursor(1, 0);
-    lcd.print("               ");
+    if (fuelLevel != prevFuelLevel) {
+        prevFuelLevel = fuelLevel;
+        //reset lcd row
+        lcd.setCursor(1, 0);
+        lcd.print("               ");
 
-    //write the first 5 fields with 'mediumChar'
-    for (unsigned int i = 1; i<= fuelLevel; i++) {
-        lcd.setCursor(i, 0);
-        lcd.write(byte(1));
-        if (i>= 5)
-            break;
-    }
+        //write the first 5 fields with 'mediumChar'
+        for (unsigned int i = 1; i <= fuelLevel; i++) {
+            lcd.setCursor(i, 0);
+            lcd.write(byte(1));
+            if (i >= 5)
+                break;
+        }
 
-    //write the 
-    for (unsigned int i=1; i<=fuelLevel - 5; i++) {
-        lcd.setCursor(i + 5, 0);
-        lcd.print('\377');
+        //write the last fields
+        for (unsigned int i = 1; i <= fuelLevel - 5; i++) {
+            lcd.setCursor(i + 5, 0);
+            lcd.print('\377');
+        }
     }
 
     //enable the fuel warn lamp
     if (fuelLevel <= FUEL_WARN_THRESHOLD) {
         //start blinking
-        digitalWrite(FUEL_WARN_LAMP, HIGH);        
+        digitalWrite(FUEL_WARN_LAMP, HIGH);
         if (fuelLevel <= 2 && count % MODULO == 0) {
             digitalWrite(FUEL_WARN_LAMP, LOW);
         }
@@ -146,12 +230,12 @@ void handleBreakFluidWarnlamp(int state) {
 }
 
 /**
- * handle fan
+ * handle fan button
  */
 void handleFan(int state) {
     if (state == LOW) {
         digitalWrite(FAN, HIGH);
-    } else {
+    } else if (state == HIGH && fanOn == 0){
         digitalWrite(FAN, LOW);
     }
 }
@@ -169,13 +253,16 @@ void handleHorn(int state) {
 
 void setup() {
     //Serial.begin(9600);
+    //Display setup
     lcd.begin(16, 2); //setup Display 16 columns, 2 rows
     lcd.createChar(0, fuelSymbol); //init fuel char
     lcd.createChar(1, mediumChar); //init mediumChar
-
     //Init first row and write Fuel Symbol
     lcd.setCursor(0, 0); //first row
     lcd.write(byte(0)); //write fuel symbol
+
+    pinMode(DISPLAY_LED_POWER, OUTPUT);
+    digitalWrite(DISPLAY_LED_POWER, HIGH); //enable LED light
 
     pinMode(BTN_FAN, INPUT); //btn fan
     digitalWrite(BTN_FAN, HIGH); //enable internal pullup
@@ -188,9 +275,8 @@ void setup() {
     pinMode(FUEL_WARN_LAMP, OUTPUT);
     pinMode(HORN, OUTPUT);
     pinMode(BREAKFLUID_WARNLIGHT, OUTPUT);
+    pinMode(TEMPSENSOR, INPUT);
 
-    attachInterrupt(0, wakeUp, LOW); //wake up on 0 == PIN 2 == fan button
-    attachInterrupt(1, wakeUp, HIGH); //wake up on 1 == PIN 2 == power switch
 }
 
 void loop() {
@@ -199,7 +285,7 @@ void loop() {
     //check power mode and sleep mode to enable sleep
     int readPowerOn = digitalRead(ENGINE_ON);
     if (readPowerOn == LOW && enableSleep == 1) {
-        if (time > (powerOffTime + (SLEEP_TIME * 60 * 1000))) {
+        if (time > (powerOffTime + SLEEP_TIME)) {
             gotoSleep();
         }
     }
@@ -207,19 +293,22 @@ void loop() {
     count++;
 
     //start reading
-    int fuelSensorValue = analogRead(FUELSENSOR);
-    int tempSensorValue = analogRead(TEMPSENSOR);
+    fuelSensorValue = analogRead(FUELSENSOR);
+    temperaturSensorValue = analogRead(TEMPSENSOR);
 
-    int readBtnFan = digitalRead(BTN_FAN);
-    int readBtnHorn = digitalRead(BTN_HORN);
-    int readBtnBreak = digitalRead(BTN_BREAKFLUID_WARNLIGHT);
+    //read button states
+    readBtnFan = digitalRead(BTN_FAN);
+    readBtnHorn = digitalRead(BTN_HORN);
+    readBtnBreak = digitalRead(BTN_BREAKFLUID_WARNLIGHT);
 
-    handleTempReading(tempSensorValue);
-    handleFuelReading(fuelSensorValue);
     //handle button actions
     handleBreakFluidWarnlamp(readBtnBreak);
     handleFan(readBtnFan);
     handleHorn(readBtnHorn);
+
+    //handle sensor values
+    handleTempReading(temperaturSensorValue);
+    handleFuelReading(fuelSensorValue);
 
     //handle power off mode
     if (readPowerOn == LOW && enableSleep == 0 && readBtnFan == HIGH) {

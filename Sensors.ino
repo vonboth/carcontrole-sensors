@@ -71,6 +71,7 @@ byte fuelSymbol[8] = {
         0b11100
 };
 
+//every sedond dot left off to symbolize a low level
 byte mediumChar[8] = {
         0b10101,
         0b01010,
@@ -131,7 +132,9 @@ int calculateTemperature(float sensorValue) {
 
 
 /**
- * write the temp bargraph
+ * write the temp and bargraph to the display
+ * 
+ * float sensorValue
  */
 void handleTempReading(float sensorValue) {
 
@@ -183,6 +186,8 @@ void handleTempReading(float sensorValue) {
 
 /**
  * write the Fuel bargraph
+ * 
+ * int sensorValue analog reading from the pin
  */
 void handleFuelReading(int sensorValue) {
 
@@ -224,6 +229,9 @@ void handleFuelReading(int sensorValue) {
 
 /**
  * handle break fluid warning lamp
+ * turns the break fluid warn lamp on/off
+ * 
+ * int state current state of the pin HIGH / LOW
  */
 void handleBreakFluidWarnlamp(int state) {
     if (state == LOW) {
@@ -235,6 +243,9 @@ void handleBreakFluidWarnlamp(int state) {
 
 /**
  * handle fan button
+ * turns the cooler fan on/off
+ *
+ * int state current state of the pin HIGH / LOW
  */
 void handleFan(int state) {
     if (state == LOW) {
@@ -246,6 +257,9 @@ void handleFan(int state) {
 
 /**
  * handle Horn
+ * turns the horn on/off 
+ *
+ * int state current state of the pin HIGH / LOW
  */
 void handleHorn(int state) {
     if (state == LOW) {
@@ -255,6 +269,9 @@ void handleHorn(int state) {
     }
 }
 
+/**
+ * setup routine
+ */
 void setup() {
     //Serial.begin(9600);
     //Display setup
@@ -283,6 +300,9 @@ void setup() {
 
 }
 
+/**
+ * main loop
+ */
 void loop() {
     time = millis();
 
@@ -292,6 +312,13 @@ void loop() {
         if (time > (powerOffTime + SLEEP_TIME)) {
             gotoSleep();
         }
+        
+        digitalWrite(DISPLAY_LED_POWER, LOW);
+        //immdeditaley turn disaplay backlight off when ignition is off
+
+    } else if (readPowerOn == HIGH && enableSleep == 1) {
+        enableSleep = 0;
+        digitalWrite(DISPLAY_LED_POWER, HIGH); // turn the disaply on again
     }
 
     count++;

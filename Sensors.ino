@@ -87,6 +87,7 @@ byte mediumChar[8] = {
  */
 void wakeUp() {
     enableSleep = 0;
+    digitalWrite(DISPLAY_LED_POWER, HIGH);
 }
 
 /**
@@ -97,6 +98,9 @@ void gotoSleep() {
     digitalWrite(HORN, LOW);
     digitalWrite(BREAKFLUID_WARNLIGHT, LOW);
     digitalWrite(FAN, LOW);
+    digitalWrite(DISPLAY_LED_POWER, LOW);
+
+    //go to sleep
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     attachInterrupt(0, wakeUp, LOW); //wakeup on button fan turned on

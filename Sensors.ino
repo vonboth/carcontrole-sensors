@@ -270,6 +270,19 @@ void handleHorn(int state) {
 }
 
 /**
+ * handle backlight of display
+ * 
+ * int powerState the ignition power state (ignition on/off)
+ */
+void handleDisplayBacklight(int powerState) {
+  if (powerState == LOW) {
+    digitalWrite(DISPLAY_LED_POWER, LOW);
+  } else {
+    digitalWrite(DISPLAY_LED_POWER, HIGH);
+  }
+}
+
+/**
  * setup routine
  */
 void setup() {
@@ -305,6 +318,7 @@ void setup() {
  */
 void loop() {
     time = millis();
+    count++;
 
     //check power mode and sleep mode to enable sleep
     int readPowerOn = digitalRead(ENGINE_ON);
@@ -312,17 +326,12 @@ void loop() {
         if (time > (powerOffTime + SLEEP_TIME)) {
             gotoSleep();
         }
-        
-        digitalWrite(DISPLAY_LED_POWER, LOW);
-        //immdeditaley turn disaplay backlight off when ignition is off
-
     } else if (readPowerOn == HIGH && enableSleep == 1) {
         enableSleep = 0;
-        digitalWrite(DISPLAY_LED_POWER, HIGH); // turn the disaply on again
     }
 
-    count++;
-
+    handleDisplayBacklight(readPowerOn);
+    
     //start reading
     fuelSensorValue = analogRead(FUELSENSOR);
     temperaturSensorValue = analogRead(TEMPSENSOR);

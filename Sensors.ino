@@ -26,7 +26,7 @@
 #define BREAKFLUID_WARNLIGHT A3    //break fluid warning light (used as digital output)
 #define DISPLAY_LED_POWER A5       //display led power
 #define BTN_FAN 2                  //fan enable button
-#define ENGINE_ON 3                //power on key switched
+#define IGNITION_ON 3                //power on key switched
 #define FAN 4                      //fan on/off control
 #define BTN_BREAKFLUID_WARNLIGHT 5 //button to enable break fluid warn light
 #define BTN_HORN 6                 //button to enable horn
@@ -88,7 +88,6 @@ byte mediumChar[8] = {
  */
 void wakeUp() {
     enableSleep = 0;
-    digitalWrite(DISPLAY_LED_POWER, HIGH);
 }
 
 /**
@@ -99,7 +98,6 @@ void gotoSleep() {
     digitalWrite(HORN, LOW);
     digitalWrite(BREAKFLUID_WARNLIGHT, LOW);
     digitalWrite(FAN, LOW);
-    digitalWrite(DISPLAY_LED_POWER, LOW);
 
     //go to sleep
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -296,21 +294,23 @@ void setup() {
     lcd.write(byte(0)); //write fuel symbol
 
     pinMode(DISPLAY_LED_POWER, OUTPUT);
-    digitalWrite(DISPLAY_LED_POWER, HIGH); //enable LED light
-
-    pinMode(BTN_FAN, INPUT); //btn fan
-    digitalWrite(BTN_FAN, HIGH); //enable internal pullup
-    pinMode(ENGINE_ON, INPUT); //setup power wakeup pin = interrupt enabeld
     pinMode(FAN, OUTPUT);
-    pinMode(BTN_BREAKFLUID_WARNLIGHT, INPUT);
-    digitalWrite(BTN_BREAKFLUID_WARNLIGHT, HIGH); //enable internal pullup
-    pinMode(BTN_HORN, INPUT);
-    digitalWrite(BTN_HORN, HIGH); //enable internal pullup
     pinMode(FUEL_WARN_LAMP, OUTPUT);
     pinMode(HORN, OUTPUT);
     pinMode(BREAKFLUID_WARNLIGHT, OUTPUT);
-    pinMode(TEMPSENSOR, INPUT);
+    
+    pinMode(IGNITION_ON, INPUT); //setup power wakeup pin = interrupt enabeld
 
+    pinMode(BTN_FAN, INPUT); //btn fan
+    digitalWrite(BTN_FAN, HIGH); //enable internal pullup
+    
+    pinMode(BTN_BREAKFLUID_WARNLIGHT, INPUT);
+    digitalWrite(BTN_BREAKFLUID_WARNLIGHT, HIGH); //enable internal pullup
+    
+    pinMode(BTN_HORN, INPUT);
+    digitalWrite(BTN_HORN, HIGH); //enable internal pullup
+
+    pinMode(TEMPSENSOR, INPUT);
 }
 
 /**
@@ -321,16 +321,16 @@ void loop() {
     count++;
 
     //check power mode and sleep mode to enable sleep
-    int readPowerOn = digitalRead(ENGINE_ON);
-    if (readPowerOn == LOW && enableSleep == 1) {
+    int ignitionState = digitalRead(IGNITION_ON);
+    if (ignitionState == LOW && enableSleep == 1) {
         if (time > (powerOffTime + SLEEP_TIME)) {
             gotoSleep();
         }
-    } else if (readPowerOn == HIGH && enableSleep == 1) {
+    } else if (ignitionState == HIGH && enableSleep == 1) {
         enableSleep = 0;
     }
 
-    handleDisplayBacklight(readPowerOn);
+    handleDisplayBacklight(ignitionState);
     
     //start reading
     fuelSensorValue = analogRead(FUELSENSOR);
@@ -351,7 +351,7 @@ void loop() {
     handleFuelReading(fuelSensorValue);
 
     //handle power off mode
-    if (readPowerOn == LOW && enableSleep == 0 && readBtnFan == HIGH) {
+    if (ignitionState == LOW && enableSleep == 0 && readBtnFan == HIGH) {
         powerOffTime = time;
         enableSleep = 1;
     }

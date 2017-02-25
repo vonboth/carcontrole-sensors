@@ -270,14 +270,14 @@ void handleHorn(int state) {
 /**
  * handle backlight of display
  * 
- * int powerState the ignition power state (ignition on/off)
+ * int ignitionState the ignition power state (ignition on/off)
  */
-void handleDisplayBacklight(int powerState) {
-  if (powerState == LOW) {
-    digitalWrite(DISPLAY_LED_POWER, LOW);
-  } else {
-    digitalWrite(DISPLAY_LED_POWER, HIGH);
-  }
+void handleDisplayBacklight(int ignitionState) {
+    if (ignitionState == LOW) {
+        digitalWrite(DISPLAY_LED_POWER, LOW);
+    } else if (ignitionState == HIGH) {
+        digitalWrite(DISPLAY_LED_POWER, HIGH);
+    }
 }
 
 /**

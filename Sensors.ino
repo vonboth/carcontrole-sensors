@@ -24,7 +24,7 @@
 #define TEMPSENSOR A1              //temperatur sensor
 #define FUELSENSOR A2              //fuel sender / sensor
 #define BREAKFLUID_WARNLIGHT A3    //break fluid warning light (used as digital output)
-#define DISPLAY_LED_POWER A5       //display led power
+#define DISPLAY_LED_POWER 0        //display led power
 #define BTN_FAN 2                  //fan enable button
 #define IGNITION_ON 3                //power on key switched
 #define FAN 4                      //fan on/off control
@@ -41,7 +41,6 @@
 #define DELAY 100
 
 LiquidCrystal lcd(13, 12, 11, 10, 9, 8); //define the LCD Pins
-const int numReadings = 5;
 
 float temperaturSensorValue=0.0;
 int fuelSensorValue = 0;

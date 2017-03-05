@@ -31,10 +31,10 @@
 #define BTN_BREAKFLUID_WARNLIGHT 5 //button to enable break fluid warn light
 #define BTN_HORN 6                 //button to enable horn
 #define FUEL_WARN_LAMP 7           //fuel warn lamp
-#define FUEL_WARN_THRESHOLD 5      //number of display digits before warning lamp is turned on
+
 #define FAN_ON_TEMP 95             //temperatur to turn on fan [°C]
 #define FAN_OFF_TEMP 90            //temperatur to turn off fan [°C]
-
+#define FUEL_WARN_THRESHOLD 5      //number of display digits before warning lamp is turned on
 #define ABSZERO 273.15
 #define MODULO 5
 #define SLEEP_TIME 60000           //delay before Atmega goes to sleep 1 minute
@@ -71,7 +71,7 @@ byte fuelSymbol[8] = {
         0b11100
 };
 
-//every sedond dot left off to symbolize a low level
+//every second dot left off to symbolize a low level
 byte mediumChar[8] = {
         0b10101,
         0b01010,
